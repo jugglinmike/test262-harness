@@ -4,19 +4,17 @@
 // This code is governed by the BSD License found in the LICENSE file.
 const DEFAULT_TEST_TIMEOUT = 10000;
 
-const compile = require('test262-compiler');
 const fs = require('fs');
 const Path = require('path');
-const globber = require('../lib/globber.js');
 const cli = require('../lib/cli.js');
 const argv = cli.argv;
 const validator = require('../lib/validator.js');
 const Rx = require('rx');
 const util = require('util');
 const resultsEmitter = require('../lib/resultsEmitter.js');
+const testStream = require('../lib/test-stream');
 const agentPool = require('../lib/agentPool.js');
 const test262Finder = require('../lib/findTest262.js');
-const scenariosForTest = require('../lib/scenarios.js');
 
 // test262 directory (used to locate includes unless overridden with includesDir)
 let test262Dir = argv.test262Dir;
@@ -119,15 +117,16 @@ if (!argv._.length) {
 // Test Pipeline
 const pool = agentPool(Number(argv.threads), hostType, argv.hostArgs, hostPath,
                        { timeout: argv.timeout, transpiler });
-const paths = globber(argv._);
 
 if (!includesDir && !test262Dir) {
   test262Dir = test262Finder(paths.fileEvents[0]);
+} else if (!test262Dir) {
+  test262Dir = process.cwd();
 }
-const files = paths.map(pathToTestFile);
-const tests = files.map(compileFile).filter(hasFeatures);
-const scenarios = tests.flatMap(scenariosForTest);
-const pairs = Rx.Observable.zip(pool, scenarios);
+
+const tests = testStream(test262Dir, includesDir, argv._)
+  .filter(hasFeatures);
+const pairs = Rx.Observable.zip(pool, tests);
 const rawResults = pairs.flatMap(pool.runTest).tapOnCompleted(() => pool.destroy());
 const results = rawResults.map(test => {
   test.result = validator(test);
@@ -150,17 +149,4 @@ function hasFeatures(test) {
     return true;
   }
   return features.filter(feature => (test.attrs.features || []).includes(feature)).length > 0;
-}
-
-function compileFile(test) {
-  const endFrontmatterRe = /---\*\/\r?\n/g;
-  const match = endFrontmatterRe.exec(test.contents);
-  if (match) {
-    test.contents = test.contents.slice(0, endFrontmatterRe.lastIndex)
-                    + preludeContents
-                    + test.contents.slice(endFrontmatterRe.lastIndex);
-  } else {
-    test.contents = preludeContents + test.contents;
-  }
-  return compile(test, { test262Dir, includesDir });
 }
