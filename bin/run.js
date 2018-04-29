@@ -125,6 +125,7 @@ if (!includesDir && !test262Dir) {
 }
 
 const tests = testStream(test262Dir, includesDir, argv._)
+  .map(insertPrelude)
   .filter(hasFeatures);
 const pairs = Rx.Observable.zip(pool, tests);
 const rawResults = pairs.flatMap(pool.runTest).tapOnCompleted(() => pool.destroy());
@@ -138,6 +139,19 @@ reporter(resultEmitter, reporterOpts);
 function printVersion() {
   const p = require(Path.resolve(__dirname, "..", "package.json"));
   console.log(`v${p.version}`);
+}
+
+function insertPrelude(test) {
+  const index = test.insertionIndex;
+  if (!preludeContents || index === -1) {
+    return test;
+  }
+  
+  test.contents = test.contents.slice(0, index) +
+    preludeContents +
+    test.contents.slice(index);
+
+  return test;
 }
 
 function pathToTestFile(path) {
