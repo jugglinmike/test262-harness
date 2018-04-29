@@ -80,7 +80,7 @@ tap.test('Expecting no error reported', assert => {
 tap.test('Ran to finish (pass)', assert => {
   const rawResult = {
     stderr: '',
-    stdout: 'test262/done',
+    stdout: 'Test262:AsyncTestComplete',
     error: null,
   };
   const test = Object.assign({}, fixture, { rawResult });
