@@ -22,15 +22,16 @@ function reportRunError(error) {
 }
 
 function run(extraArgs) {
+  let args = [
+      '--hostType', 'node',
+      '--hostPath', process.execPath,
+      '-r', 'json',
+      '--includesDir', './test/test-includes',
+    ].concat(extraArgs);
+
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
-    let args = [
-        '--hostType', 'node',
-        '--hostPath', process.execPath,
-        '-r', 'json',
-        '--includesDir', './test/test-includes',
-      ].concat(extraArgs);
 
     const child = cp.fork('bin/run.js', args, { silent: true });
 
@@ -47,17 +48,17 @@ function run(extraArgs) {
         reject(e);
       }
     });
-  });
+  }).then((records) => ({records, args}));
 }
 
-function validate(records) {
+function validate(summaries) {
   const [
     normal,
     prelude,
     withoutRawResult,
     withRawResult1, withRawResult2, withRawResult3,
     babelResult
-  ] = records;
+  ] = summaries;
   validateResultRecords(normal);
   validateResultRecords(prelude, { prelude: true });
   validateResultRecords(withoutRawResult, { noRawResult: true });
@@ -67,14 +68,14 @@ function validate(records) {
   validateResultRecords(babelResult);
 }
 
-function validateResultRecords(records, options = { prelude: false }) {
-  records.forEach(record => {
+function validateResultRecords(summary, options = { prelude: false }) {
+  summary.records.forEach(record => {
 
     const description = options.prelude ?
       `${record.attrs.description} with prelude` :
       record.attrs.description;
 
-    tap.test(description, test => {
+    tap.test(summary.args.join(' ') + ' | ' + description, test => {
 
       if (typeof record.scenario !== 'undefined') {
         if (record.contents.startsWith('"use strict"')) {
