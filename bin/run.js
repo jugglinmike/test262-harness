@@ -143,13 +143,22 @@ function printVersion() {
 
 function insertPrelude(test) {
   const index = test.insertionIndex;
-  if (!preludeContents || index === -1) {
+  //console.log('test', JSON.stringify(test, null, 2));
+  if (index === -1) {
     return test;
   }
-  
-  test.contents = test.contents.slice(0, index) +
-    preludeContents +
-    test.contents.slice(index);
+
+  if (preludeContents) {
+    test.contents = test.contents.slice(0, index) +
+      preludeContents +
+      test.contents.slice(index);
+  }
+
+  if (!test.attrs.flags.async) {
+    test.contents += '\n;print("Test262-harness:SyncTestComplete");';
+  }
+  //console.log(test.contents.split('\n').map(l=>'> ' + l).join('\n'));
+
 
   return test;
 }
