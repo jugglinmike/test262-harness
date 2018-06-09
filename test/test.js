@@ -3,14 +3,22 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 
+const binPath = path.join(__dirname, '..', 'bin', 'run.js');
+
 const tests = [
-  [['test/collateral/test/**/*.js']],
-  [['--prelude', './test/fixtures/prelude.js', 'test/collateral/test/bothStrict.js'], { prelude: true }],
-  [['--reporter-keys', 'attrs,result', 'test/collateral/test/bothStrict.js'], { noRawResult: true }],
-  [['--reporter-keys', 'rawResult,attrs,result', 'test/collateral/test/bothStrict.js']],
-  [['--reporter-keys', 'attrs,rawResult,result', 'test/collateral/test/bothStrict.js']],
-  [['--reporter-keys', 'attrs,result,rawResult', 'test/collateral/test/bothStrict.js']],
-  [['--babelPresets', 'stage-3', '--reporter-keys', 'attrs,result,rawResult', 'test/babel-collateral/test/spread-sngl-obj-ident.js']]
+  [['test/**/*.js'], { cwd: 'test/collateral-with-harness' }],
+  [['--test262Dir', './test/collateral-with-harness', 'test/collateral-with-harness/test/**/*.js']],
+  [['--test262Dir', './collateral-with-harness', 'collateral-with-harness/test/**/*.js'], { cwd: 'test' }],
+  [['--includesDir', './test/test-includes', 'test/collateral/test/**/*.js']],
+  [['test/collateral-with-harness/test/**/*.js']],
+  [['--includesDir', './test-includes', 'collateral/test/**/*.js'], { cwd: 'test' }],
+  [['collateral-with-harness/test/**/*.js'], { cwd: 'test' }],
+  [['--includesDir', './test/test-includes', '--prelude', './test/fixtures/prelude.js', 'test/collateral/test/bothStrict.js'], { prelude: true }],
+  [['--includesDir', './test/test-includes', '--reporter-keys', 'attrs,result', 'test/collateral/test/bothStrict.js'], { noRawResult: true }],
+  [['--includesDir', './test/test-includes', '--reporter-keys', 'rawResult,attrs,result', 'test/collateral/test/bothStrict.js']],
+  [['--includesDir', './test/test-includes', '--reporter-keys', 'attrs,rawResult,result', 'test/collateral/test/bothStrict.js']],
+  [['--includesDir', './test/test-includes', '--reporter-keys', 'attrs,result,rawResult', 'test/collateral/test/bothStrict.js']],
+  [['--includesDir', './test/test-includes', '--babelPresets', 'stage-3', '--reporter-keys', 'attrs,result,rawResult', 'test/babel-collateral/test/spread-sngl-obj-ident.js']]
 ];
 
 Promise.all(tests.map(args => run(...args).then(validate)))
@@ -30,10 +38,10 @@ function run(extraArgs, options) {
         '--hostType', 'node',
         '--hostPath', process.execPath,
         '-r', 'json',
-        '--includesDir', './test/test-includes',
       ].concat(extraArgs);
+    let cwd = options && options.cwd;
 
-    const child = cp.fork('bin/run.js', args, { silent: true });
+    const child = cp.fork(binPath, args, { cwd, silent: true });
 
     child.stdout.on('data', (data) => { stdout += data });
     child.stderr.on('data', (data) => { stderr += data });
