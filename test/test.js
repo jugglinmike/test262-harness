@@ -3,17 +3,18 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 
-Promise.all([
-  run(['test/collateral/test/**/*.js']),
-  run(['--prelude', './test/fixtures/prelude.js', 'test/collateral/test/bothStrict.js']),
-  run(['--reporter-keys', 'attrs,result', 'test/collateral/test/bothStrict.js']),
-  run(['--reporter-keys', 'rawResult,attrs,result', 'test/collateral/test/bothStrict.js']),
-  run(['--reporter-keys', 'attrs,rawResult,result', 'test/collateral/test/bothStrict.js']),
-  run(['--reporter-keys', 'attrs,result,rawResult', 'test/collateral/test/bothStrict.js']),
-  run(['--babelPresets', 'stage-3', '--reporter-keys', 'attrs,result,rawResult', 'test/babel-collateral/test/spread-sngl-obj-ident.js'])
-])
-.then(validate)
-.catch(reportRunError);
+const tests = [
+  [['test/collateral/test/**/*.js']],
+  [['--prelude', './test/fixtures/prelude.js', 'test/collateral/test/bothStrict.js'], { prelude: true }],
+  [['--reporter-keys', 'attrs,result', 'test/collateral/test/bothStrict.js'], { noRawResult: true }],
+  [['--reporter-keys', 'rawResult,attrs,result', 'test/collateral/test/bothStrict.js']],
+  [['--reporter-keys', 'attrs,rawResult,result', 'test/collateral/test/bothStrict.js']],
+  [['--reporter-keys', 'attrs,result,rawResult', 'test/collateral/test/bothStrict.js']],
+  [['--babelPresets', 'stage-3', '--reporter-keys', 'attrs,result,rawResult', 'test/babel-collateral/test/spread-sngl-obj-ident.js']]
+];
+
+Promise.all(tests.map(args => run(...args).then(validate)))
+  .catch(reportRunError);
 
 function reportRunError(error) {
   console.error('Error running tests');
@@ -21,7 +22,7 @@ function reportRunError(error) {
   process.exit(1);
 }
 
-function run(extraArgs) {
+function run(extraArgs, options) {
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
@@ -42,7 +43,10 @@ function run(extraArgs) {
       }
 
       try {
-        resolve(JSON.parse(stdout));
+        resolve({
+          records: JSON.parse(stdout),
+          options
+        });
       } catch(e) {
         reject(e);
       }
@@ -50,24 +54,7 @@ function run(extraArgs) {
   });
 }
 
-function validate(records) {
-  const [
-    normal,
-    prelude,
-    withoutRawResult,
-    withRawResult1, withRawResult2, withRawResult3,
-    babelResult
-  ] = records;
-  validateResultRecords(normal);
-  validateResultRecords(prelude, { prelude: true });
-  validateResultRecords(withoutRawResult, { noRawResult: true });
-  validateResultRecords(withRawResult1);
-  validateResultRecords(withRawResult2);
-  validateResultRecords(withRawResult3);
-  validateResultRecords(babelResult);
-}
-
-function validateResultRecords(records, options = { prelude: false }) {
+function validate({ records, options = { prelude: false } }) {
   records.forEach(record => {
 
     const description = options.prelude ?
