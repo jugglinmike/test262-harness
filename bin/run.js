@@ -133,14 +133,17 @@ if (!test262Dir) {
 
 let test262Version;
 try {
-  test262Version = require(Path.join(test262Dir, 'package.json')).version;
+  test262Version = JSON.parse(
+    fs.readFileSync(Path.join(test262Dir, 'package.json'))
+  ).version;
 } catch (err) {
   console.error('Unable to detect version of test262: ' + err);
   process.exitCode = 1;
   return;
 }
 
-if (!ACCEPTED_TEST262_VERSIONS.test(test262Version)) {
+if (!ACCEPTED_TEST262_VERSIONS.test(test262Version) &&
+  test262Version !== acceptVersion) {
   console.error('Incompatible test262 version: ' + test262Version);
   process.exitCode = 1;
   return;
